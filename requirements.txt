@@ -1,3 +1,5 @@
 intake
 intake-esm
 matplotlib
+aiohttp
+requests
