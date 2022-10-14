@@ -25,7 +25,7 @@ longitude_of_location = -3.5275
 
 member_to_use = ds['member_id'].values[0]
 
-ds_at_location = ds['tasmax'].sel(lat=latitude_of_location, lon=longitude_of_location, member_id=member_to_use, method='nearest')
+ds_at_location = ds['tasmax'].sel(lat=latitude_of_location, lon=longitude_of_location, method='nearest').sel(member_id=member_to_use)
 
 end_of_century = ds_at_location.sel(time=slice('2080-01-01', '2099-12-31'))
 
