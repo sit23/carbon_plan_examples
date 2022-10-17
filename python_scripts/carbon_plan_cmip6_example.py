@@ -57,6 +57,7 @@ variable_to_search = 'tasmax'
 
 latitude_of_location = 50.7260
 longitude_of_location = -3.5275
+season_to_study = 'JJA'
 
 #Search the catalogue for my search criteria
 cat_search_subset = cat.search(
@@ -99,10 +100,10 @@ for dset_name in dsets.keys():
         time_slice = ds_at_location.sel(time=slice('2080-01-01', '2099-12-31'))
 
     #Select only the summer months (JJA in the northern hemisphere)
-    time_slice_summer = time_slice.where(time_slice.time.dt.season=='JJA', drop=True)
+    time_slice_summer = time_slice.where(time_slice.time.dt.season==season_to_study, drop=True)
 
     #Specify the name of my output file
-    filename_out = f'{dset_name}_{latitude_of_location:.2f}_{longitude_of_location:.2f}.csv'
+    filename_out = f'{dset_name}_{latitude_of_location:.2f}_{longitude_of_location:.2f}_{season_to_study}.csv'
 
     #Send it to a csv file
     time_slice_summer.to_dataframe().to_csv(filename_out)
