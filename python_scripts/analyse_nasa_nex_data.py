@@ -27,8 +27,8 @@ if __name__=="__main__":
 
     season_to_study='JJA'
 
-    latitude_of_location = 50.7260
-    longitude_of_location = 360.-3.5275
+    latitude_of_location = 40.7128
+    longitude_of_location = 360.-74.006
 
     for model_to_search in ['EC-Earth3']:
         print(model_to_search)
