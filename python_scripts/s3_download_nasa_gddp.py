@@ -43,10 +43,10 @@ if __name__=="__main__":
 
     bucket_name='reanalysis-data'
 
-    for model_to_search in ['EC-Earth3']:
-        for variable_to_search in ['tasmax', 'hurs']:
+    for model_to_search in ['EC-Earth3', 'MIROC6']:
+        for variable_to_search in ['tasmax', 'hurs', 'huss']:
             print(variable_to_search)
-            for experiment_to_search in ['historical', 'ssp585']:
+            for experiment_to_search in ['historical', 'ssp585', 'ssp245']:
                 print(experiment_to_search)
                 ensemble_id = 'r1i1p1f1'
 
