@@ -10,8 +10,11 @@ import dask
 import os
 import subprocess
 import shutil
+from rechunker import rechunk
+from dask.diagnostics import ProgressBar
+from zarr.convenience import consolidate_metadata
 
-season_to_study='JJA'
+season_to_study='SON'
 
 def sel_summer(ds):
 
@@ -43,8 +46,8 @@ if __name__=="__main__":
 
     bucket_name='reanalysis-data'
 
-    for model_to_search in ['EC-Earth3', 'MIROC6']:
-        for variable_to_search in ['tasmax', 'hurs', 'huss']:
+    for model_to_search in ['EC-Earth3', 'ACCESS-CM2', 'MIROC6']:
+        for variable_to_search in ['tasmax', 'hurs']:
             print(variable_to_search)
             for experiment_to_search in ['historical', 'ssp585', 'ssp245']:
                 print(experiment_to_search)
@@ -86,55 +89,92 @@ if __name__=="__main__":
                 out_filename = f'{local_file_path}{variable_to_search}_{experiment_to_search}_{model_to_search}_{available_years[0]}_{available_years[-1]}_{season_to_study}'
 
                 zarr_filename=f'{out_filename}.zarr'
+                target_store = f'{out_filename}_final.zarr'
 
                 s3_zarr_name = create_s3_zarr_filename(bucket_name, zarr_filename)
+                s3_zarr_name_final = create_s3_zarr_filename(bucket_name, target_store)
 
-                zarr_file = s3.ls(f'{s3_zarr_name}')
+                zarr_file = s3.ls(f'{s3_zarr_name_final}')
 
                 if len(zarr_file)!=0:
-                    print(f'file {s3_zarr_name} already exists. Skipping')
+                    print(f'file {s3_zarr_name_final} already exists. Skipping')
                 else:
-                    print(f'file {s3_zarr_name} does not exist. Calculating')
+                    print(f'file {s3_zarr_name_final} does not exist. Calculating')
 
-                    files_to_download_dask = []
-                    local_files_list = []
-
-                    for file_to_download in files:
-
-                        s3_file_to_get = f'{s3_path}{file_to_download}'
-                        local_file_location = f'{local_file_path}{file_to_download}'
-
-                        local_files_list.append(local_file_location)
-
-                        if not os.path.isfile(local_file_location):
-                            files_to_download_dask.append(dask.delayed(get_file)(s3, s3_file_to_get, local_file_location))
-
-                    out = dask.compute(*files_to_download_dask)    
-                    
-                    print('completed downloads, now opening as dataset')
-                    dataset=xar.open_mfdataset(local_files_list, preprocess=sel_summer)    
-
-
-                    # nc_filename = f'{out_filename}.nc'
-
-                    newds=dataset
-
-                    print('writing to zarr')
 
                     if not os.path.isdir(zarr_filename):
-                        newds.to_zarr(zarr_filename, consolidated=True)
+                        files_to_download_dask = []
+                        local_files_list = []
 
-                    dataset.close()
+                        for file_to_download in files:
+
+                            s3_file_to_get = f'{s3_path}{file_to_download}'
+                            local_file_location = f'{local_file_path}{file_to_download}'
+
+                            local_files_list.append(local_file_location)
+
+                            if not os.path.isfile(local_file_location):
+                                files_to_download_dask.append(dask.delayed(get_file)(s3, s3_file_to_get, local_file_location))
+
+                        out = dask.compute(*files_to_download_dask)    
+                        
+                        print('completed downloads, now opening as dataset')
+                        dataset=xar.open_mfdataset(local_files_list, preprocess=sel_summer)    
+
+
+                        newds=dataset
+
+                        print('writing to zarr')
+
+                        if not os.path.isdir(zarr_filename):
+                            newds.to_zarr(zarr_filename, consolidated=True)
+
+                        dataset.close()
+
+                        print('removing local files')
+                        for local_file in local_files_list:
+                            os.remove(local_file)
+
+                    else:
+                        print('unchunked zarr exists. Continuing.')
+
+                    zarr_unchunked = xar.open_zarr(zarr_filename, consolidated=True)
+
+                    coords_list = [key for key in zarr_unchunked.coords.keys()]
+                    var_list = [keyval for keyval in zarr_unchunked.variables if keyval not in coords_list]   
+
+                    target_chunks_vars = {k:{'time': zarr_unchunked['time'].shape[0], 'lat': 10, 'lon': 20} for k in var_list}
+
+                    target_chunks_dims = {k:None for k in coords_list}
+
+                    target_chunks = {**target_chunks_vars, **target_chunks_dims}
+
+                    max_mem = '750MB'
+
+                    temp_store = f'{out_filename}TEMP.zarr'
+
+                    # need to remove the existing stores or it won't work
+                    for path_to_check in [target_store, temp_store]:
+                        if os.path.isdir(path_to_check):
+                            shutil.rmtree(f'{path_to_check}') 
+
+                    array_plan = rechunk(zarr_unchunked, target_chunks, max_mem, target_store, temp_store=temp_store)
+
+                    with ProgressBar():
+                        array_plan.execute()
+
+                    consolidate_metadata(target_store)
 
                     print('uploading to s3')
 
-                    upload_zarr_to_s3(bucket_name, zarr_filename, s3_zarr_name)
+                    # upload_zarr_to_s3(bucket_name, zarr_filename, s3_zarr_name)
+                    upload_zarr_to_s3(bucket_name, target_store, s3_zarr_name_final)
 
-                    print('removing local files')
-                    for local_file in local_files_list:
-                        os.remove(local_file)
                         
                     # os.remove(nc_filename)
                     shutil.rmtree(zarr_filename)
+                    shutil.rmtree(temp_store)
+                    shutil.rmtree(target_store)
+                    
 
                     

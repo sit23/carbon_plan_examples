@@ -14,7 +14,7 @@ def generate_local_zarr_name(variable_to_search, experiment_to_search, model_to_
 
     out_filename = f'{variable_to_search}_{experiment_to_search}_{model_to_search}_{available_years[0]}_{available_years[-1]}_{season_to_study}'
 
-    zarr_filename=f'{out_filename}.zarr'
+    zarr_filename=f'{out_filename}_final.zarr'
 
     return zarr_filename
 
@@ -71,9 +71,6 @@ if __name__=="__main__":
 
                     #Actually subset the data based on location and ensemble member
                     ds_at_location = zarr[variable_to_search].sel(lat=latitude_of_location, lon=longitude_of_location, method='nearest')
-
-
-
 
                     print('writing to csv file')
                     #Send it to a csv file
