@@ -3,3 +3,4 @@ intake-esm
 matplotlib
 aiohttp
 requests
+s3fs
