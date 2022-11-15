@@ -14,7 +14,7 @@ from rechunker import rechunk
 from dask.diagnostics import ProgressBar
 from zarr.convenience import consolidate_metadata
 
-season_to_study='SON'
+season_to_study='MAM'
 
 def sel_summer(ds):
 
@@ -49,7 +49,7 @@ if __name__=="__main__":
     for model_to_search in ['EC-Earth3', 'ACCESS-CM2', 'MIROC6']:
         for variable_to_search in ['tasmax', 'hurs']:
             print(variable_to_search)
-            for experiment_to_search in ['historical', 'ssp585', 'ssp245']:
+            for experiment_to_search in ['historical', 'ssp585', 'ssp370', 'ssp245']:
                 print(experiment_to_search)
                 ensemble_id = 'r1i1p1f1'
 
